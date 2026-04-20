@@ -2,64 +2,118 @@ package token
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
-	"log"
 	"time"
 
+	"cth.release/common"
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var secretKey []byte = nil
+type Config struct {
+	SecretKey []byte
+	Issuer    string
+	Expiry    time.Duration
+}
 
-func setRandomSecretKey() {
-	if secretKey == nil {
-		secretKey = make([]byte, 64)
-		_, err := rand.Read(secretKey)
+type Service struct {
+	secretKey []byte
+	issuer    string
+	expiry    time.Duration
+	now       func() time.Time
+}
+
+type Claims struct {
+	UUID string `json:"uuid"`
+	jwt.RegisteredClaims
+}
+
+func NewService(cfg Config) (*Service, error) {
+	secretKey := cfg.SecretKey
+	if len(secretKey) == 0 {
+		var err error
+		secretKey, err = generateSecretKey()
 		if err != nil {
-			fmt.Printf("Failed to generate secret key: %v\n", err)
-			return
+			return nil, err
 		}
-
-		log.Println(string(secretKey))
 	}
+
+	expiry := cfg.Expiry
+	if expiry <= 0 {
+		expiry = 8 * time.Hour
+	}
+
+	return &Service{
+		secretKey: secretKey,
+		issuer:    cfg.Issuer,
+		expiry:    expiry,
+		now:       time.Now,
+	}, nil
 }
 
-func CreateToken(uuid string) (string, error) {
-	setRandomSecretKey()
-	// Create claims with multiple fields
-	claims := jwt.MapClaims{
-		"uuid": uuid,
-		"exp":  time.Now().Add(time.Hour * 8).Unix(), // Expires in 8 hours
-		"iat":  time.Now().Unix(),                    // Issued at
+func NewServiceFromAppConfig(cfg *common.Config) (*Service, error) {
+	return NewService(Config{
+		SecretKey: []byte(cfg.JWTSecret),
+		Issuer:    cfg.JWTIssuer,
+		Expiry:    cfg.JWTExpiry,
+	})
+}
+
+func (s *Service) CreateToken(uuid string) (string, error) {
+	if uuid == "" {
+		return "", fmt.Errorf("uuid is required")
 	}
 
-	// Create token with claims
+	issuedAt := s.now()
+	expiresAt := issuedAt.Add(s.expiry)
+	claims := Claims{
+		UUID: uuid,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    s.issuer,
+			IssuedAt:  jwt.NewNumericDate(issuedAt),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// Sign token with secret key
-	tokenString, err := token.SignedString(secretKey)
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
+	return token.SignedString(s.secretKey)
 }
 
-func VerifyToken(tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+func (s *Service) VerifyToken(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return secretKey, nil
+		return s.secretKey, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		return claims, nil
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
 	}
 
-	return nil, fmt.Errorf("invalid token")
+	return claims, nil
+}
+
+func (s *Service) Expiry() time.Duration {
+	return s.expiry
+}
+
+func generateSecretKey() ([]byte, error) {
+	secretKey := make([]byte, 64)
+	if _, err := rand.Read(secretKey); err != nil {
+		return nil, fmt.Errorf("failed to generate secret key: %w", err)
+	}
+	return secretKey, nil
+}
+
+func GenerateEncodedSecret() (string, error) {
+	secret, err := generateSecretKey()
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(secret), nil
 }
