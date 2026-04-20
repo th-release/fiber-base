@@ -53,9 +53,9 @@ func NewService(cfg Config) (*Service, error) {
 
 func NewServiceFromAppConfig(cfg *common.Config) (*Service, error) {
 	return NewService(Config{
-		SecretKey: []byte(cfg.JWTSecret),
-		Issuer:    cfg.JWTIssuer,
-		Expiry:    cfg.JWTExpiry,
+		SecretKey: []byte(cfg.JWT.Secret),
+		Issuer:    cfg.JWT.Issuer,
+		Expiry:    cfg.JWT.Expiry,
 	})
 }
 

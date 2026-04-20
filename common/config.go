@@ -10,66 +10,136 @@ import (
 )
 
 type Config struct {
+	Server   ServerConfig   `json:"server"`
+	Web      WebConfig      `json:"web"`
+	Database DatabaseConfig `json:"database"`
+	JWT      JWTConfig      `json:"jwt"`
+	SMTP     SMTPConfig     `json:"smtp"`
+	FCM      FCMConfig      `json:"fcm"`
+	XSS      XSSConfig      `json:"xss"`
+}
+
+type ServerConfig struct {
 	Port string `json:"PORT"`
+}
 
-	DatabaseHost string `json:"DATABASE_HOST"`
-	DatabasePort string `json:"DATABASE_PORT"`
-	DatabaseUser string `json:"DATABASE_USER"`
-	DatabasePass string `json:"DATABASE_PASS"`
-	DatabaseName string `json:"DATABASE_NAME"`
+type WebConfig struct {
+	StaticDir    string `json:"STATIC_DIR"`
+	SPAIndexFile string `json:"SPA_INDEX_FILE"`
+}
 
-	JWTSecret        string        `json:"JWT_SECRET"`
-	JWTIssuer        string        `json:"JWT_ISSUER"`
-	JWTExpiry        time.Duration `json:"JWT_EXPIRY"`
-	StaticDir        string        `json:"STATIC_DIR"`
-	SPAIndexFile     string        `json:"SPA_INDEX_FILE"`
-	SMTPHost         string        `json:"SMTP_HOST"`
-	SMTPPort         int           `json:"SMTP_PORT"`
-	SMTPUser         string        `json:"SMTP_USER"`
-	SMTPPass         string        `json:"SMTP_PASS"`
-	SMTPFrom         string        `json:"SMTP_FROM"`
-	SMTPAuthIdentity string        `json:"SMTP_AUTH_IDENTITY"`
-	SMTPStartTLS     bool          `json:"SMTP_STARTTLS"`
-	SMTPInsecureSkip bool          `json:"SMTP_INSECURE_SKIP_VERIFY"`
-	FCMProjectID     string        `json:"FCM_PROJECT_ID"`
-	FCMClientEmail   string        `json:"FCM_CLIENT_EMAIL"`
-	FCMPrivateKey    string        `json:"FCM_PRIVATE_KEY"`
-	FCMTokenURI      string        `json:"FCM_TOKEN_URI"`
-	FCMScope         string        `json:"FCM_SCOPE"`
-	FCMBaseURL       string        `json:"FCM_BASE_URL"`
-	FCMCredsJSON     string        `json:"FCM_CREDENTIALS_JSON"`
-	FCMCredsFile     string        `json:"FCM_CREDENTIALS_FILE"`
+type DatabaseConfig struct {
+	Host string `json:"DATABASE_HOST"`
+	Port string `json:"DATABASE_PORT"`
+	User string `json:"DATABASE_USER"`
+	Pass string `json:"DATABASE_PASS"`
+	Name string `json:"DATABASE_NAME"`
+}
+
+type JWTConfig struct {
+	Secret string        `json:"JWT_SECRET"`
+	Issuer string        `json:"JWT_ISSUER"`
+	Expiry time.Duration `json:"JWT_EXPIRY"`
+}
+
+type SMTPConfig struct {
+	Host               string `json:"SMTP_HOST"`
+	Port               int    `json:"SMTP_PORT"`
+	User               string `json:"SMTP_USER"`
+	Pass               string `json:"SMTP_PASS"`
+	From               string `json:"SMTP_FROM"`
+	AuthIdentity       string `json:"SMTP_AUTH_IDENTITY"`
+	StartTLS           bool   `json:"SMTP_STARTTLS"`
+	InsecureSkipVerify bool   `json:"SMTP_INSECURE_SKIP_VERIFY"`
+}
+
+type FCMConfig struct {
+	ProjectID       string `json:"FCM_PROJECT_ID"`
+	ClientEmail     string `json:"FCM_CLIENT_EMAIL"`
+	PrivateKey      string `json:"FCM_PRIVATE_KEY"`
+	TokenURI        string `json:"FCM_TOKEN_URI"`
+	Scope           string `json:"FCM_SCOPE"`
+	BaseURL         string `json:"FCM_BASE_URL"`
+	CredentialsJSON string `json:"FCM_CREDENTIALS_JSON"`
+	CredentialsFile string `json:"FCM_CREDENTIALS_FILE"`
+}
+
+type XSSConfig struct {
+	AllowElements []string `json:"XSS_ALLOW_ELEMENTS"`
 }
 
 func GetConfig() *Config {
 	return &Config{
-		Port:             utils.ThreeTermString(len(os.Getenv("PORT")) > 0, os.Getenv("PORT"), "9000"),
-		DatabaseHost:     utils.ThreeTermString(len(os.Getenv("DATABASE_HOST")) > 0, os.Getenv("DATABASE_HOST"), "host.docker.internal"),
-		DatabasePort:     utils.ThreeTermString(len(os.Getenv("DATABASE_PORT")) > 0, os.Getenv("DATABASE_PORT"), "5432"),
-		DatabaseUser:     utils.ThreeTermString(len(os.Getenv("DATABASE_USER")) > 0, os.Getenv("DATABASE_USER"), "root"),
-		DatabasePass:     utils.ThreeTermString(len(os.Getenv("DATABASE_PASS")) > 0, os.Getenv("DATABASE_PASS"), "password"),
-		DatabaseName:     utils.ThreeTermString(len(os.Getenv("DATABASE_NAME")) > 0, os.Getenv("DATABASE_NAME"), "database"),
-		JWTSecret:        os.Getenv("JWT_SECRET"),
-		JWTIssuer:        getEnvString("JWT_ISSUER", "fiber-base"),
-		JWTExpiry:        getEnvDuration("JWT_EXPIRY", 8*time.Hour),
-		StaticDir:        getEnvString("STATIC_DIR", "./public"),
-		SPAIndexFile:     getEnvString("SPA_INDEX_FILE", "index.html"),
-		SMTPHost:         os.Getenv("SMTP_HOST"),
-		SMTPPort:         getEnvInt("SMTP_PORT", 587),
-		SMTPUser:         os.Getenv("SMTP_USER"),
-		SMTPPass:         os.Getenv("SMTP_PASS"),
-		SMTPFrom:         os.Getenv("SMTP_FROM"),
-		SMTPAuthIdentity: os.Getenv("SMTP_AUTH_IDENTITY"),
-		SMTPStartTLS:     getEnvBool("SMTP_STARTTLS", true),
-		SMTPInsecureSkip: getEnvBool("SMTP_INSECURE_SKIP_VERIFY", false),
-		FCMProjectID:     os.Getenv("FCM_PROJECT_ID"),
-		FCMClientEmail:   os.Getenv("FCM_CLIENT_EMAIL"),
-		FCMPrivateKey:    os.Getenv("FCM_PRIVATE_KEY"),
-		FCMTokenURI:      getEnvString("FCM_TOKEN_URI", "https://oauth2.googleapis.com/token"),
-		FCMScope:         getEnvString("FCM_SCOPE", "https://www.googleapis.com/auth/firebase.messaging"),
-		FCMBaseURL:       getEnvString("FCM_BASE_URL", "https://fcm.googleapis.com"),
-		FCMCredsJSON:     os.Getenv("FCM_CREDENTIALS_JSON"),
-		FCMCredsFile:     os.Getenv("FCM_CREDENTIALS_FILE"),
+		Server:   loadServerConfig(),
+		Web:      loadWebConfig(),
+		Database: loadDatabaseConfig(),
+		JWT:      loadJWTConfig(),
+		SMTP:     loadSMTPConfig(),
+		FCM:      loadFCMConfig(),
+		XSS:      loadXSSConfig(),
+	}
+}
+
+func loadServerConfig() ServerConfig {
+	return ServerConfig{
+		Port: utils.ThreeTermString(len(os.Getenv("PORT")) > 0, os.Getenv("PORT"), "9000"),
+	}
+}
+
+func loadWebConfig() WebConfig {
+	return WebConfig{
+		StaticDir:    getEnvString("STATIC_DIR", "./public"),
+		SPAIndexFile: getEnvString("SPA_INDEX_FILE", "index.html"),
+	}
+}
+
+func loadDatabaseConfig() DatabaseConfig {
+	return DatabaseConfig{
+		Host: utils.ThreeTermString(len(os.Getenv("DATABASE_HOST")) > 0, os.Getenv("DATABASE_HOST"), "host.docker.internal"),
+		Port: utils.ThreeTermString(len(os.Getenv("DATABASE_PORT")) > 0, os.Getenv("DATABASE_PORT"), "5432"),
+		User: utils.ThreeTermString(len(os.Getenv("DATABASE_USER")) > 0, os.Getenv("DATABASE_USER"), "root"),
+		Pass: utils.ThreeTermString(len(os.Getenv("DATABASE_PASS")) > 0, os.Getenv("DATABASE_PASS"), "password"),
+		Name: utils.ThreeTermString(len(os.Getenv("DATABASE_NAME")) > 0, os.Getenv("DATABASE_NAME"), "database"),
+	}
+}
+
+func loadJWTConfig() JWTConfig {
+	return JWTConfig{
+		Secret: os.Getenv("JWT_SECRET"),
+		Issuer: getEnvString("JWT_ISSUER", "fiber-base"),
+		Expiry: getEnvDuration("JWT_EXPIRY", 8*time.Hour),
+	}
+}
+
+func loadSMTPConfig() SMTPConfig {
+	return SMTPConfig{
+		Host:               os.Getenv("SMTP_HOST"),
+		Port:               getEnvInt("SMTP_PORT", 587),
+		User:               os.Getenv("SMTP_USER"),
+		Pass:               os.Getenv("SMTP_PASS"),
+		From:               os.Getenv("SMTP_FROM"),
+		AuthIdentity:       os.Getenv("SMTP_AUTH_IDENTITY"),
+		StartTLS:           getEnvBool("SMTP_STARTTLS", true),
+		InsecureSkipVerify: getEnvBool("SMTP_INSECURE_SKIP_VERIFY", false),
+	}
+}
+
+func loadFCMConfig() FCMConfig {
+	return FCMConfig{
+		ProjectID:       os.Getenv("FCM_PROJECT_ID"),
+		ClientEmail:     os.Getenv("FCM_CLIENT_EMAIL"),
+		PrivateKey:      os.Getenv("FCM_PRIVATE_KEY"),
+		TokenURI:        getEnvString("FCM_TOKEN_URI", "https://oauth2.googleapis.com/token"),
+		Scope:           getEnvString("FCM_SCOPE", "https://www.googleapis.com/auth/firebase.messaging"),
+		BaseURL:         getEnvString("FCM_BASE_URL", "https://fcm.googleapis.com"),
+		CredentialsJSON: os.Getenv("FCM_CREDENTIALS_JSON"),
+		CredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
+	}
+}
+
+func loadXSSConfig() XSSConfig {
+	return XSSConfig{
+		AllowElements: getEnvCSV("XSS_ALLOW_ELEMENTS", nil),
 	}
 }
 
@@ -118,4 +188,26 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
+}
+
+func getEnvCSV(key string, fallback []string) []string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+
+	if len(result) == 0 {
+		return fallback
+	}
+	return result
 }

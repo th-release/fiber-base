@@ -43,14 +43,14 @@ func NewSender(cfg Config) *Sender {
 
 func NewSenderFromAppConfig(cfg *common.Config) *Sender {
 	return NewSender(Config{
-		Host:               cfg.SMTPHost,
-		Port:               cfg.SMTPPort,
-		Username:           cfg.SMTPUser,
-		Password:           cfg.SMTPPass,
-		From:               cfg.SMTPFrom,
-		AuthIdentity:       cfg.SMTPAuthIdentity,
-		StartTLS:           cfg.SMTPStartTLS,
-		InsecureSkipVerify: cfg.SMTPInsecureSkip,
+		Host:               cfg.SMTP.Host,
+		Port:               cfg.SMTP.Port,
+		Username:           cfg.SMTP.User,
+		Password:           cfg.SMTP.Pass,
+		From:               cfg.SMTP.From,
+		AuthIdentity:       cfg.SMTP.AuthIdentity,
+		StartTLS:           cfg.SMTP.StartTLS,
+		InsecureSkipVerify: cfg.SMTP.InsecureSkipVerify,
 	})
 }
 

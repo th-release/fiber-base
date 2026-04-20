@@ -14,8 +14,8 @@ func SetupRoutes(app *fiber.App, cfg *common.Config) *fiber.App {
 
 	api.Get("/health", HealthHandler)
 
-	if hasFile(cfg.StaticDir, cfg.SPAIndexFile) {
-		app.Static("/", cfg.StaticDir)
+	if hasFile(cfg.Web.StaticDir, cfg.Web.SPAIndexFile) {
+		app.Static("/", cfg.Web.StaticDir)
 		app.Get("*", SPARouteHandler(cfg))
 	}
 
@@ -42,7 +42,7 @@ func SPARouteHandler(cfg *common.Config) fiber.Handler {
 			return c.Next()
 		}
 
-		return c.SendFile(filepath.Join(cfg.StaticDir, cfg.SPAIndexFile))
+		return c.SendFile(filepath.Join(cfg.Web.StaticDir, cfg.Web.SPAIndexFile))
 	}
 }
 

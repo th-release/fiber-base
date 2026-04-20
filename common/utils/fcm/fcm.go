@@ -152,17 +152,17 @@ func NewSenderFromAppConfig(cfg *common.Config) (*Sender, error) {
 
 	return NewSender(Config{
 		Credentials: credentials,
-		BaseURL:     cfg.FCMBaseURL,
-		Scope:       cfg.FCMScope,
+		BaseURL:     cfg.FCM.BaseURL,
+		Scope:       cfg.FCM.Scope,
 	})
 }
 
 func CredentialsFromAppConfig(cfg *common.Config) (Credentials, error) {
-	if strings.TrimSpace(cfg.FCMCredsJSON) != "" {
-		return CredentialsFromJSON([]byte(cfg.FCMCredsJSON))
+	if strings.TrimSpace(cfg.FCM.CredentialsJSON) != "" {
+		return CredentialsFromJSON([]byte(cfg.FCM.CredentialsJSON))
 	}
-	if strings.TrimSpace(cfg.FCMCredsFile) != "" {
-		data, err := os.ReadFile(cfg.FCMCredsFile)
+	if strings.TrimSpace(cfg.FCM.CredentialsFile) != "" {
+		data, err := os.ReadFile(cfg.FCM.CredentialsFile)
 		if err != nil {
 			return Credentials{}, err
 		}
@@ -170,10 +170,10 @@ func CredentialsFromAppConfig(cfg *common.Config) (Credentials, error) {
 	}
 
 	credentials := Credentials{
-		ProjectID:   strings.TrimSpace(cfg.FCMProjectID),
-		ClientEmail: strings.TrimSpace(cfg.FCMClientEmail),
-		PrivateKey:  normalizePrivateKey(cfg.FCMPrivateKey),
-		TokenURI:    strings.TrimSpace(cfg.FCMTokenURI),
+		ProjectID:   strings.TrimSpace(cfg.FCM.ProjectID),
+		ClientEmail: strings.TrimSpace(cfg.FCM.ClientEmail),
+		PrivateKey:  normalizePrivateKey(cfg.FCM.PrivateKey),
+		TokenURI:    strings.TrimSpace(cfg.FCM.TokenURI),
 	}
 	if credentials.TokenURI == "" {
 		credentials.TokenURI = "https://oauth2.googleapis.com/token"
