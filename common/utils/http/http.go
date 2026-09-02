@@ -1,4 +1,4 @@
-package http
+package httpclient
 
 import (
 	"fmt"
@@ -6,196 +6,93 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func PostRequest[T any](client *resty.Client, url string, queryParams map[string]string, headers map[string]string, data interface{}) (*resty.Response, T, interface{}, error) {
+func Get[T any](client *resty.Client, url string, query, headers map[string]string) (*resty.Response, T, error) {
 	var result T
-	var errorResult interface{}
-	req := client.R().
-		SetError(&errorResult).
-		SetBody(data).
-		SetResult(&result)
-
-	if len(queryParams) > 0 {
-		req = req.SetQueryParams(queryParams)
-	}
-
-	if len(headers) > 0 {
-		req = req.SetHeaders(headers)
-	}
-
-	if data != nil {
-		if headers["Content-Type"] == "application/x-www-form-urlencoded" || headers["Content-Type"] == "application/form-data" {
-			if formData, ok := data.(map[string]interface{}); ok {
-				formParams := make(map[string]string)
-				for k, v := range formData {
-					// Convert values to string; adjust based on actual types
-					formParams[k] = fmt.Sprintf("%v", v)
-				}
-				req = req.SetBody(nil).SetFormData(formParams)
-			} else {
-				return nil, result, errorResult, fmt.Errorf("data must be a map for x-www-form-urlencoded")
-			}
-		} else {
-			req = req.SetBody(data)
-		}
-	}
-
-	resp, err := req.Post(url)
-
-	if err != nil {
-		return nil, result, errorResult, err
-	}
-
-	return resp, result, errorResult, nil
-}
-
-func GetRequest[T any](client *resty.Client, url string, queryParams map[string]string, headers map[string]string) (*resty.Response, T, interface{}, error) {
-	var result T
-	var errorResult interface{}
-	req := client.R().
-		SetResult(&result).
-		SetError(&errorResult)
-
-	if len(queryParams) > 0 {
-		req = req.SetQueryParams(queryParams)
-	}
-
-	if len(headers) > 0 {
-		req = req.SetHeaders(headers)
-	}
-
+	req := client.R().SetResult(&result)
+	applyQuery(req, query)
+	applyHeaders(req, headers)
 	resp, err := req.Get(url)
 	if err != nil {
-		return nil, result, errorResult, err
+		return nil, result, err
 	}
-	return resp, result, errorResult, nil
+	return resp, result, nil
 }
 
-func PutRequest[T any](client *resty.Client, url string, queryParams map[string]string, headers map[string]string, data interface{}) (*resty.Response, T, interface{}, error) {
-	var result T
-	var errorResult interface{}
-	req := client.R().
-		SetError(&errorResult).
-		SetBody(data).
-		SetResult(&result)
-
-	if len(queryParams) > 0 {
-		req = req.SetQueryParams(queryParams)
-	}
-
-	if len(headers) > 0 {
-		req = req.SetHeaders(queryParams)
-	}
-
-	if data != nil {
-		if headers["Content-Type"] == "application/x-www-form-urlencoded" {
-			if formData, ok := data.(map[string]interface{}); ok {
-				formParams := make(map[string]string)
-				for k, v := range formData {
-					// Convert values to string; adjust based on actual types
-					formParams[k] = fmt.Sprintf("%v", v)
-				}
-				req = req.SetBody(nil).SetFormData(formParams)
-			} else {
-				return nil, result, errorResult, fmt.Errorf("data must be a map for x-www-form-urlencoded")
-			}
-		} else {
-			req = req.SetBody(data)
-		}
-	}
-
-	resp, err := req.Put(url)
-
-	if err != nil {
-		return nil, result, errorResult, err
-	}
-	return resp, result, errorResult, nil
+func Post[T any](client *resty.Client, url string, query, headers map[string]string, body interface{}) (*resty.Response, T, error) {
+	return send[T](client, query, headers, body, func(req *resty.Request) (*resty.Response, error) {
+		return req.Post(url)
+	})
 }
 
-func DeleteRequest[T any](client *resty.Client, url string, queryParams map[string]string, headers map[string]string, data interface{}) (*resty.Response, T, interface{}, error) {
-	var result T
-	var errorResult interface{}
-	req := client.R().
-		SetError(&errorResult).
-		SetBody(data).
-		SetResult(&result)
-
-	if len(queryParams) > 0 {
-		req = req.SetQueryParams(queryParams)
-	}
-
-	if len(headers) > 0 {
-		req = req.SetHeaders(headers)
-	}
-
-	if data != nil {
-		if headers["Content-Type"] == "application/x-www-form-urlencoded" {
-			if formData, ok := data.(map[string]interface{}); ok {
-				formParams := make(map[string]string)
-				for k, v := range formData {
-					// Convert values to string; adjust based on actual types
-					formParams[k] = fmt.Sprintf("%v", v)
-				}
-				req = req.SetBody(nil).SetFormData(formParams)
-			} else {
-				return nil, result, errorResult, fmt.Errorf("data must be a map for x-www-form-urlencoded")
-			}
-		} else {
-			req = req.SetBody(data)
-		}
-	}
-
-	resp, err := req.Delete(url)
-	if err != nil {
-		return nil, result, errorResult, err
-	}
-
-	return resp, result, errorResult, nil
+func Put[T any](client *resty.Client, url string, query, headers map[string]string, body interface{}) (*resty.Response, T, error) {
+	return send[T](client, query, headers, body, func(req *resty.Request) (*resty.Response, error) {
+		return req.Put(url)
+	})
 }
 
-func PatchRequest[T any](client *resty.Client, url string, queryParams map[string]string, headers map[string]string, data interface{}) (*resty.Response, T, interface{}, error) {
-	var result T
-	var errorResult interface{}
-	req := client.R().
-		SetError(&errorResult).
-		SetBody(data).
-		SetResult(&result)
-
-	if len(queryParams) > 0 {
-		req = req.SetQueryParams(queryParams)
-	}
-
-	if len(headers) > 0 {
-		req = req.SetHeaders(headers)
-	}
-
-	if data != nil {
-		if headers["Content-Type"] == "application/x-www-form-urlencoded" {
-			if formData, ok := data.(map[string]interface{}); ok {
-				formParams := make(map[string]string)
-				for k, v := range formData {
-					// Convert values to string; adjust based on actual types
-					formParams[k] = fmt.Sprintf("%v", v)
-				}
-				req = req.SetBody(nil).SetFormData(formParams)
-			} else {
-				return nil, result, errorResult, fmt.Errorf("data must be a map for x-www-form-urlencoded")
-			}
-		} else {
-			req = req.SetBody(data)
-		}
-	}
-
-	resp, err := req.Patch(url)
-	if err != nil {
-		return nil, result, errorResult, err
-	}
-	return resp, result, errorResult, nil
+func Patch[T any](client *resty.Client, url string, query, headers map[string]string, body interface{}) (*resty.Response, T, error) {
+	return send[T](client, query, headers, body, func(req *resty.Request) (*resty.Response, error) {
+		return req.Patch(url)
+	})
 }
 
-func CheckResponse(resp *resty.Response) error {
+func Delete[T any](client *resty.Client, url string, query, headers map[string]string, body interface{}) (*resty.Response, T, error) {
+	return send[T](client, query, headers, body, func(req *resty.Request) (*resty.Response, error) {
+		return req.Delete(url)
+	})
+}
+
+func CheckStatus(resp *resty.Response) error {
 	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode(), resp.String())
 	}
+	return nil
+}
 
+func send[T any](client *resty.Client, query, headers map[string]string, body interface{}, do func(*resty.Request) (*resty.Response, error)) (*resty.Response, T, error) {
+	var result T
+	req := client.R().SetResult(&result)
+	applyQuery(req, query)
+	applyHeaders(req, headers)
+	if err := applyBody(req, headers, body); err != nil {
+		return nil, result, err
+	}
+	resp, err := do(req)
+	if err != nil {
+		return nil, result, err
+	}
+	return resp, result, nil
+}
+
+func applyQuery(req *resty.Request, query map[string]string) {
+	if len(query) > 0 {
+		req.SetQueryParams(query)
+	}
+}
+
+func applyHeaders(req *resty.Request, headers map[string]string) {
+	if len(headers) > 0 {
+		req.SetHeaders(headers)
+	}
+}
+
+func applyBody(req *resty.Request, headers map[string]string, body interface{}) error {
+	if body == nil {
+		return nil
+	}
+	ct := headers["Content-Type"]
+	if ct == "application/x-www-form-urlencoded" || ct == "application/form-data" {
+		m, ok := body.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("form-urlencoded body must be map[string]interface{}")
+		}
+		params := make(map[string]string, len(m))
+		for k, v := range m {
+			params[k] = fmt.Sprintf("%v", v)
+		}
+		req.SetFormData(params)
+		return nil
+	}
+	req.SetBody(body)
 	return nil
 }

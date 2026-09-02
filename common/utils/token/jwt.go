@@ -16,6 +16,11 @@ type Config struct {
 	Expiry    time.Duration
 }
 
+type Claims struct {
+	UUID string `json:"uuid"`
+	jwt.RegisteredClaims
+}
+
 type Service struct {
 	secretKey []byte
 	issuer    string
@@ -23,16 +28,11 @@ type Service struct {
 	now       func() time.Time
 }
 
-type Claims struct {
-	UUID string `json:"uuid"`
-	jwt.RegisteredClaims
-}
-
 func NewService(cfg Config) (*Service, error) {
-	secretKey := cfg.SecretKey
-	if len(secretKey) == 0 {
+	key := cfg.SecretKey
+	if len(key) == 0 {
 		var err error
-		secretKey, err = generateSecretKey()
+		key, err = generateKey()
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +44,7 @@ func NewService(cfg Config) (*Service, error) {
 	}
 
 	return &Service{
-		secretKey: secretKey,
+		secretKey: key,
 		issuer:    cfg.Issuer,
 		expiry:    expiry,
 		now:       time.Now,
@@ -63,38 +63,32 @@ func (s *Service) CreateToken(uuid string) (string, error) {
 	if uuid == "" {
 		return "", fmt.Errorf("uuid is required")
 	}
-
-	issuedAt := s.now()
-	expiresAt := issuedAt.Add(s.expiry)
+	now := s.now()
 	claims := Claims{
 		UUID: uuid,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    s.issuer,
-			IssuedAt:  jwt.NewNumericDate(issuedAt),
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.expiry)),
 		},
 	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.secretKey)
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(s.secretKey)
 }
 
 func (s *Service) VerifyToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return s.secretKey, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
-
 	return claims, nil
 }
 
@@ -102,18 +96,19 @@ func (s *Service) Expiry() time.Duration {
 	return s.expiry
 }
 
-func generateSecretKey() ([]byte, error) {
-	secretKey := make([]byte, 64)
-	if _, err := rand.Read(secretKey); err != nil {
-		return nil, fmt.Errorf("failed to generate secret key: %w", err)
-	}
-	return secretKey, nil
-}
-
+// GenerateEncodedSecret creates a random 64-byte secret and returns it as a base64 string.
 func GenerateEncodedSecret() (string, error) {
-	secret, err := generateSecretKey()
+	key, err := generateKey()
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(secret), nil
+	return base64.StdEncoding.EncodeToString(key), nil
+}
+
+func generateKey() ([]byte, error) {
+	key := make([]byte, 64)
+	if _, err := rand.Read(key); err != nil {
+		return nil, fmt.Errorf("failed to generate secret key: %w", err)
+	}
+	return key, nil
 }
