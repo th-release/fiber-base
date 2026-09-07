@@ -5,7 +5,6 @@ bin/
 *.exe
 *.test
 *.out
-proven-trade-binance
 
 # Coverage
 coverage.out
