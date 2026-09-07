@@ -1,0 +1,20 @@
+.DS_Store
+
+# Go build outputs
+bin/
+*.exe
+*.test
+*.out
+proven-trade-binance
+
+# Coverage
+coverage.out
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Editor and IDE files
+.idea/
+.vscode/
