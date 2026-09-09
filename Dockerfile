@@ -6,13 +6,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o proven-trade-binance .
+RUN CGO_ENABLED=0 GOOS=linux go build -o fiber-base .
 
 FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
-COPY --from=builder /app/proven-trade-binance .
+COPY --from=builder /app/fiber-base .
 
-CMD ["./proven-trade-binance"]
+CMD ["./fiber-base"]
